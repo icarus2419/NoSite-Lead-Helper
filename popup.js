@@ -101,6 +101,10 @@
   }
 
   async function addLead(lead) {
+    // Hard rule: only businesses without a linked website are saved.
+    if (lead && lead.websiteStatus === "Website found") {
+      return { added: false, reason: "has-website" };
+    }
     const leads = await getLeads();
     const id = leadId(lead);
     if (leads.some((l) => leadId(l) === id)) {
@@ -306,6 +310,8 @@
           btn.innerHTML = ICONS.check + " Saved";
           btn.disabled = true;
           refreshLeadsCount();
+        } else if (r.reason === "has-website") {
+          showStatus("Skipped — this business has a linked website.", "warn");
         } else {
           showStatus("Already saved.", "warn");
         }
@@ -549,8 +555,14 @@
       const existing = await getLeads();
       const seen = new Set(existing.map(leadId));
       let added = 0;
+      let skippedWithSite = 0;
       for (const lead of incoming) {
         if (!lead || typeof lead !== "object") continue;
+        // Same hard rule as saving: never restore a business that has a website.
+        if (lead.websiteStatus === "Website found") {
+          skippedWithSite++;
+          continue;
+        }
         const id = leadId(lead);
         if (seen.has(id)) continue;
         seen.add(id);
@@ -561,8 +573,11 @@
       await setLeads(existing);
       refreshLeadsCount();
       if (!leadsSection.classList.contains("hidden")) renderSavedLeads();
+      const dupes = incoming.length - added - skippedWithSite;
       showStatus(
-        "Imported " + added + " new lead(s) (" + (incoming.length - added) + " already present).",
+        "Imported " + added + " new lead(s)" +
+          (dupes > 0 ? " · " + dupes + " already present" : "") +
+          (skippedWithSite > 0 ? " · " + skippedWithSite + " skipped (has website)" : "") + ".",
         "success"
       );
     } catch (e) {
@@ -642,6 +657,11 @@
           refreshLeadsCount();
           // If the leads panel is open, refresh it.
           if (!leadsSection.classList.contains("hidden")) renderSavedLeads();
+        } else if (r.reason === "has-website") {
+          showStatus(
+            "Not saved — " + (res.lead.name || "this business") + " has a linked website.",
+            "warn"
+          );
         } else {
           showStatus("That business is already saved.", "warn");
         }

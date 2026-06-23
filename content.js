@@ -82,25 +82,46 @@
     "webseite",
   ];
 
-  // Does the given href look like a real external website (not a Google/Maps
-  // internal link)?
+  // Hosts that belong to Google's own infrastructure (never a business site).
+  function isGoogleHost(host) {
+    if (!host) return true;
+    return (
+      /(^|\.)google(\.[a-z]{2,3}){1,2}$/.test(host) || // google.com, google.co.uk, google.ca …
+      /(^|\.)(gstatic|ggpht|googleusercontent|googleapis|google)\.com$/.test(host) ||
+      host === "goo.gl" ||
+      host.endsWith(".goo.gl") ||
+      host === "schema.org" ||
+      host.endsWith(".schema.org")
+    );
+  }
+
+  // Does the given href point to a real external business website (not a
+  // Google/Maps internal link)? Unwraps Google redirect wrappers like
+  //   https://www.google.com/url?q=https://realsite.com
   function isExternalSite(href) {
     if (!href) return false;
     try {
-      const u = new URL(href, location.href);
-      const host = u.hostname.toLowerCase();
-      if (!host) return false;
-      // Internal / non-website hosts we should ignore.
-      const internal = [
-        "google.com",
-        "google.ca",
-        "goo.gl",
-        "maps.google.com",
-        "support.google.com",
-        "accounts.google.com",
-        "gstatic.com",
-      ];
-      if (internal.some((d) => host === d || host.endsWith("." + d))) return false;
+      let u = new URL(href, location.href);
+      let host = u.hostname.toLowerCase();
+
+      // Unwrap Google redirect/click wrappers to the real destination.
+      if (isGoogleHost(host)) {
+        const target =
+          u.searchParams.get("q") ||
+          u.searchParams.get("url") ||
+          u.searchParams.get("adurl") ||
+          u.searchParams.get("continue");
+        if (target) {
+          try {
+            u = new URL(target, location.href);
+            host = u.hostname.toLowerCase();
+          } catch (e) {
+            return false;
+          }
+        }
+      }
+
+      if (!host || isGoogleHost(host)) return false;
       if (u.protocol !== "http:" && u.protocol !== "https:") return false;
       return true;
     } catch (e) {
@@ -111,32 +132,33 @@
   // Inspect a root element (a result card or the detail panel) and decide its
   // website status. Returns one of:
   //   "Website found", "No website detected", "Unknown"
+  // Labels that mean "this business has no website yet" (owner prompts), which
+  // we must NOT mistake for an actual website affordance.
+  const NON_WEBSITE_LABEL = /\b(add|claim|suggest|edit|missing)\b/;
+
   function detectWebsiteStatus(root) {
     try {
       if (!root) return "Unknown";
 
-      // Strategy 1: explicit data attributes used by the detail panel.
-      //   The "Website" action in the panel typically renders as
-      //   <a data-item-id="authority" ...> or has a tooltip.
-      const authority = pick(root, [
+      // Strategy 1: an explicit "Website" affordance. Google only renders
+      // these when the business actually has a website, so presence alone is
+      // a reliable positive — we do NOT require the href to validate (it may
+      // be a redirect wrapper or a button without a plain href).
+      const affordance = pick(root, [
         'a[data-item-id="authority"]',
+        '[data-item-id="authority"]',
         'a[data-tooltip="Open website"]',
-        'a[aria-label*="ebsite" i]',
-      ]);
-      if (authority && isExternalSite(authority.getAttribute("href"))) {
-        return "Website found";
-      }
-
-      // Strategy 2: result cards expose a "Website" button as
-      //   <a data-value="Website"> or a link whose aria-label mentions it.
-      const cardWebsite = pick(root, [
+        '[data-tooltip="Open website"]',
         'a[data-value="Website"]',
-        'a[data-value*="ebsite"]',
+        '[data-value="Website"]',
+        'a[data-value*="ebsite" i]',
+        'a[jsaction*="authority" i]',
         'a[jsaction*="website" i]',
       ]);
-      if (cardWebsite) return "Website found";
+      if (affordance) return "Website found";
 
-      // Strategy 3: scan anchors/buttons for website-like text or aria-labels.
+      // Strategy 2: scan clickables for a website-style label in any language,
+      // ignoring owner prompts like "Add a website".
       const clickables = root.querySelectorAll("a, button, [role='button']");
       for (const el of clickables) {
         const label = (
@@ -145,18 +167,12 @@
           ""
         ).toLowerCase();
         if (!label) continue;
-        if (WEBSITE_WORDS.some((w) => label.includes(w))) {
-          // Confirm it's an external link when we can; otherwise trust label.
-          const href = el.getAttribute && el.getAttribute("href");
-          if (href) {
-            if (isExternalSite(href)) return "Website found";
-          } else {
-            return "Website found";
-          }
-        }
+        if (NON_WEBSITE_LABEL.test(label)) continue;
+        if (WEBSITE_WORDS.some((w) => label.includes(w))) return "Website found";
       }
 
-      // Strategy 4: any clearly-external anchor at all inside the card.
+      // Strategy 3: any clearly-external anchor (cards that link straight to
+      // the business site, including unwrapped Google redirects).
       const anchors = root.querySelectorAll("a[href]");
       for (const a of anchors) {
         if (isExternalSite(a.getAttribute("href"))) return "Website found";
