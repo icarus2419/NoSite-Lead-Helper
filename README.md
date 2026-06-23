@@ -191,9 +191,3 @@ It does **not**:
 ## Notes for public release
 
 Google Maps data and Chrome extension distribution may be subject to platform terms and policies. Review the relevant terms before publishing this extension publicly or using it commercially.
-
----
-
-## License
-
-No license selected yet. Add a `LICENSE` file before public distribution if you want others to reuse or modify the project.
