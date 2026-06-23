@@ -24,6 +24,11 @@
       <button id="exportBtn" type="button" class="btn btn-small"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export CSV</button>
       <button id="clearBtn" type="button" class="btn btn-small btn-danger"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Clear</button>
     </div>
+    <div class="actions-row">
+      <button id="backupBtn" type="button" class="btn btn-small"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Backup JSON</button>
+      <button id="restoreBtn" type="button" class="btn btn-small"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Restore JSON</button>
+    </div>
+    <input id="restoreFile" type="file" accept="application/json,.json" hidden />
   </section>
 
   <!-- Scan results (businesses with no website found on the page) -->
@@ -49,8 +54,15 @@
     </div>
     <div class="panel-toolbar">
       <input type="search" id="leadSearch" class="toolbar-input" placeholder="Search name / phone / city…" />
-      <select id="statusFilter" class="toolbar-select">
+      <select id="statusFilter" class="toolbar-select" aria-label="Filter by status">
         <option value="">All statuses</option>
+      </select>
+      <select id="leadSort" class="toolbar-select" aria-label="Sort leads">
+        <option value="added-desc">Newest</option>
+        <option value="added-asc">Oldest</option>
+        <option value="status">Status</option>
+        <option value="city">City</option>
+        <option value="name">Name</option>
       </select>
     </div>
     <div id="leadsList" class="list"></div>

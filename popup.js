@@ -228,7 +228,12 @@
     if (lead.rating)
       parts.push(ICONS.star + " " + escapeHtml(lead.rating) + (lead.reviews ? " (" + escapeHtml(lead.reviews) + ")" : ""));
     if (lead.phone)
-      parts.push(ICONS.phone + ' <span class="copyable" data-copy="' + escapeHtml(lead.phone) + '">' + escapeHtml(lead.phone) + "</span>");
+      parts.push(
+        ICONS.phone +
+          ' <span class="copyable" role="button" tabindex="0" aria-label="Copy phone number ' +
+          escapeHtml(lead.phone) + '" data-copy="' + escapeHtml(lead.phone) + '">' +
+          escapeHtml(lead.phone) + "</span>"
+      );
     if (lead.address) parts.push(ICONS.pin + " " + escapeHtml(lead.address));
     if (lead.city || lead.niche) parts.push(ICONS.tag + " " + escapeHtml([lead.niche, lead.city].filter(Boolean).join(" · ")));
     let html = parts.join(" · ");
@@ -245,10 +250,17 @@
     );
   }
 
-  // Wire any .copyable spans inside a container.
+  // Wire any .copyable spans inside a container (mouse + keyboard).
   function wireCopyables(container) {
     container.querySelectorAll(".copyable").forEach((el) => {
-      el.addEventListener("click", () => copyToClipboard(el.getAttribute("data-copy")));
+      const copy = () => copyToClipboard(el.getAttribute("data-copy"));
+      el.addEventListener("click", copy);
+      el.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          copy();
+        }
+      });
     });
   }
 
@@ -343,6 +355,21 @@
       return true;
     });
 
+    // Apply sort.
+    const sortBy = (document.getElementById("leadSort") || {}).value || "added-desc";
+    const cmpStr = (a, b) => String(a || "").localeCompare(String(b || ""), undefined, { sensitivity: "base" });
+    const byDate = (l) => Date.parse(l.dateAdded || "") || 0;
+    leads.sort((a, b) => {
+      switch (sortBy) {
+        case "added-asc": return byDate(a) - byDate(b);
+        case "name": return cmpStr(a.name, b.name);
+        case "city": return cmpStr(a.city, b.city) || cmpStr(a.name, b.name);
+        case "status": return cmpStr(a.status, b.status) || cmpStr(a.name, b.name);
+        case "added-desc":
+        default: return byDate(b) - byDate(a);
+      }
+    });
+
     leadsList.innerHTML = "";
 
     if (!all.length) {
@@ -370,24 +397,42 @@
         '<div class="lead-name">' + escapeHtml(lead.name || "(no name)") + "</div>" +
         '<div class="lead-meta">' + metaHtml(lead) + "</div>" +
         websiteTag(lead.websiteStatus) +
+        '<div class="lead-edit hidden">' +
+        '<label class="edit-label">Business name<input class="edit-name" type="text" value="' +
+        escapeHtml(lead.name || "") + '" placeholder="Business name" /></label>' +
+        '<label class="edit-label">Phone<input class="edit-phone" type="tel" value="' +
+        escapeHtml(lead.phone || "") + '" placeholder="Phone" /></label>' +
+        "</div>" +
         '<div class="lead-controls">' +
-        '<select class="status-select">' + options + "</select>" +
+        '<select class="status-select" aria-label="Lead status">' + options + "</select>" +
         "</div>" +
         '<textarea class="lead-notes" placeholder="Notes...">' + escapeHtml(lead.notes || "") + "</textarea>" +
         '<div class="lead-actions">' +
-        '<button class="mini-btn save">Save changes</button>' +
-        '<button class="mini-btn del">Delete</button>' +
+        '<button class="mini-btn edit" type="button">Edit</button>' +
+        '<button class="mini-btn save" type="button">Save changes</button>' +
+        '<button class="mini-btn del" type="button">Delete</button>' +
         "</div>";
 
-      // Save status + notes.
+      // Toggle the name/phone edit fields.
+      const editBox = card.querySelector(".lead-edit");
+      card.querySelector(".mini-btn.edit").addEventListener("click", (e) => {
+        const hidden = editBox.classList.toggle("hidden");
+        e.currentTarget.textContent = hidden ? "Edit" : "Done";
+        if (!hidden) card.querySelector(".edit-name").focus();
+      });
+
+      // Save name + phone + status + notes.
       card.querySelector(".mini-btn.save").addEventListener("click", async () => {
         const all = await getLeads();
         const target = all.find((l) => leadId(l) === id);
         if (target) {
+          target.name = card.querySelector(".edit-name").value.trim() || target.name;
+          target.phone = card.querySelector(".edit-phone").value.trim();
           target.status = card.querySelector(".status-select").value;
           target.notes = card.querySelector(".lead-notes").value;
           await setLeads(all);
           showStatus("Lead updated.", "success");
+          renderSavedLeads();
         }
       });
 
@@ -452,6 +497,80 @@
   }
 
   /* ----------------------------------------------------------------------
+   * JSON backup & restore (lossless — preserves every field for re-import)
+   * -------------------------------------------------------------------- */
+  function downloadBlob(content, type, filename) {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  async function exportJson() {
+    const leads = await getLeads();
+    if (!leads.length) {
+      showStatus("No leads to back up.", "warn");
+      return;
+    }
+    const payload = {
+      app: "NoSite Leads Helper",
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      leads,
+    };
+    try {
+      downloadBlob(
+        JSON.stringify(payload, null, 2),
+        "application/json;charset=utf-8;",
+        "nosite-leads-backup-" + new Date().toISOString().slice(0, 10) + ".json"
+      );
+      showStatus("Backed up " + leads.length + " leads (JSON).", "success");
+    } catch (e) {
+      showStatus("Backup failed: " + e.message, "error");
+    }
+  }
+
+  // Merge imported leads into existing ones, de-duping by leadId.
+  async function importJson(file) {
+    if (!file) return;
+    try {
+      const raw = await file.text();
+      const parsed = JSON.parse(raw);
+      const incoming = Array.isArray(parsed) ? parsed : parsed && parsed.leads;
+      if (!Array.isArray(incoming)) {
+        showStatus("That file doesn't look like a NoSite backup.", "error");
+        return;
+      }
+      const existing = await getLeads();
+      const seen = new Set(existing.map(leadId));
+      let added = 0;
+      for (const lead of incoming) {
+        if (!lead || typeof lead !== "object") continue;
+        const id = leadId(lead);
+        if (seen.has(id)) continue;
+        seen.add(id);
+        if (!lead.dateAdded) lead.dateAdded = new Date().toISOString();
+        existing.push(lead);
+        added++;
+      }
+      await setLeads(existing);
+      refreshLeadsCount();
+      if (!leadsSection.classList.contains("hidden")) renderSavedLeads();
+      showStatus(
+        "Imported " + added + " new lead(s) (" + (incoming.length - added) + " already present).",
+        "success"
+      );
+    } catch (e) {
+      showStatus("Import failed: " + e.message, "error");
+    }
+  }
+
+  /* ----------------------------------------------------------------------
    * Button wiring
    * -------------------------------------------------------------------- */
   function init() {
@@ -473,6 +592,9 @@
       if (!leadsSection.classList.contains("hidden")) renderSavedLeads();
     });
     statusFilter.addEventListener("change", () => {
+      if (!leadsSection.classList.contains("hidden")) renderSavedLeads();
+    });
+    $("leadSort").addEventListener("change", () => {
       if (!leadsSection.classList.contains("hidden")) renderSavedLeads();
     });
 
@@ -534,6 +656,13 @@
     });
 
     $("exportBtn").addEventListener("click", exportCsv);
+    $("backupBtn").addEventListener("click", exportJson);
+    $("restoreBtn").addEventListener("click", () => $("restoreFile").click());
+    $("restoreFile").addEventListener("change", (e) => {
+      const file = e.target.files && e.target.files[0];
+      importJson(file);
+      e.target.value = ""; // allow re-importing the same file
+    });
 
     $("clearBtn").addEventListener("click", async () => {
       const leads = await getLeads();

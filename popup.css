@@ -157,6 +157,7 @@ body::-webkit-scrollbar-thumb {
 
 .panel-toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
@@ -366,6 +367,41 @@ body::-webkit-scrollbar-thumb {
 .website-tag.none    { background: var(--success-soft); color: var(--success); }
 .website-tag.has     { background: var(--danger-soft);  color: var(--danger); }
 .website-tag.unknown { background: var(--warn-soft);    color: var(--warn); }
+
+.lead-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--panel-2);
+}
+.edit-label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.edit-label input {
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+}
+.edit-label input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--ring);
+}
 
 .lead-controls {
   display: flex;
