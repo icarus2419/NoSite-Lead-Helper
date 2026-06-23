@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NoSite Leads Helper</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <header class="app-header">
+    <img src="icons/logo-header.png" alt="NoSite Leads Helper" class="logo" />
+    <p class="subtitle">Find businesses with no website</p>
+  </header>
+
+  <!-- Status / message bar -->
+  <div id="statusBar" class="status-bar hidden" role="status" aria-live="polite"></div>
+
+  <!-- Action buttons -->
+  <section class="actions">
+    <button id="scanBtn" type="button" class="btn btn-primary"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Scan Current Google Maps Page</button>
+    <button id="saveCurrentBtn" type="button" class="btn"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>Save Current Business</button>
+    <div class="actions-row">
+      <button id="showLeadsBtn" type="button" class="btn btn-small"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>Show Saved Leads</button>
+      <button id="exportBtn" type="button" class="btn btn-small"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export CSV</button>
+      <button id="clearBtn" type="button" class="btn btn-small btn-danger"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Clear</button>
+    </div>
+  </section>
+
+  <!-- Scan results (businesses with no website found on the page) -->
+  <section id="scanResultsSection" class="panel hidden">
+    <div class="panel-header">
+      <h2>Scan Results</h2>
+      <span id="scanCount" class="badge">0</span>
+    </div>
+    <div class="panel-toolbar">
+      <button id="saveAllBtn" class="mini-btn save"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Save all no-website</button>
+      <label class="toolbar-check">
+        <input type="checkbox" id="hideUnknown" /> Hide unknown
+      </label>
+    </div>
+    <div id="scanResults" class="list"></div>
+  </section>
+
+  <!-- Saved leads -->
+  <section id="leadsSection" class="panel hidden">
+    <div class="panel-header">
+      <h2>Saved Leads</h2>
+      <span id="leadsCount" class="badge">0</span>
+    </div>
+    <div class="panel-toolbar">
+      <input type="search" id="leadSearch" class="toolbar-input" placeholder="Search name / phone / city…" />
+      <select id="statusFilter" class="toolbar-select">
+        <option value="">All statuses</option>
+      </select>
+    </div>
+    <div id="leadsList" class="list"></div>
+  </section>
+
+  <footer class="app-footer">
+    <span>Local only · No backend · chrome.storage.local</span>
+  </footer>
+
+  <script src="popup.js"></script>
+</body>
+</html>
